@@ -22,14 +22,17 @@ app.use(session({
   cookie: { secure: false, sameSite: "lax" }
 }))
 
-app.use(express.static(path.join(__dirname, "public")))
+const isRender = process.cwd().includes('/opt/render/project/src')
+const publicPath = isRender ? path.join(__dirname, '..', 'public') : path.join(__dirname, 'public')
+
+app.use(express.static(publicPath))
 
 function requireAuth(req, res, next) {
   if (!req.session.authenticated) return res.redirect("/")
   next()
 }
 
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")))
+app.get("/", (req, res) => res.sendFile(path.join(publicPath, "login.html")))
 
 app.post("/login", (req, res) => {
   const { username, password } = req.body
@@ -43,7 +46,7 @@ app.post("/login", (req, res) => {
   res.redirect("/?error=1")
 })
 
-app.get("/forgot", (req, res) => res.sendFile(path.join(__dirname, "public", "forgot.html")))
+app.get("/forgot", (req, res) => res.sendFile(path.join(publicPath, "forgot.html")))
 
 app.post("/forgot", async (req, res) => {
   const code = Math.floor(100000 + Math.random() * 900000).toString()
@@ -66,7 +69,7 @@ app.post("/forgot", async (req, res) => {
   res.redirect("/reset")
 })
 
-app.get("/reset", (req, res) => res.sendFile(path.join(__dirname, "public", "reset.html")))
+app.get("/reset", (req, res) => res.sendFile(path.join(publicPath, "reset.html")))
 
 app.post("/reset", (req, res) => {
   const { code, password } = req.body
@@ -76,7 +79,7 @@ app.post("/reset", (req, res) => {
     Date.now() - req.session.resetTime < 3600000
   ) {
     process.env.ADMIN_PASSWORD = password
-    console.log("Password updated successfully")
+    console.log("Password updated to new value")
     delete req.session.resetCode
     delete req.session.resetTime
     res.redirect("/")
@@ -87,7 +90,7 @@ app.post("/reset", (req, res) => {
 
 app.use(requireAuth)
 
-app.get("/exec", (req, res) => res.sendFile(path.join(__dirname, "public", "exec.html")))
-app.get("/settings", (req, res) => res.sendFile(path.join(__dirname, "public", "settings.html")))
+app.get("/exec", (req, res) => res.sendFile(path.join(publicPath, "exec.html")))
+app.get("/settings", (req, res) => res.sendFile(path.join(publicPath, "settings.html")))
 
 app.listen(PORT, () => console.log(`Executor running on port ${PORT}`))
