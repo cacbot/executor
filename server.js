@@ -4,7 +4,6 @@ const express = require("express")
 const session = require("express-session")
 const bodyParser = require("body-parser")
 const path = require("path")
-const bcrypt = require("bcrypt")
 const { Resend } = require("resend")
 
 const app = express()
@@ -22,8 +21,10 @@ app.use(session({
   cookie: { secure: false, sameSite: "lax" }
 }))
 
-const isRender = process.cwd().includes('/opt/render/project/src')
-const publicPath = isRender ? path.join(__dirname, '..', 'public') : path.join(__dirname, 'public')
+let publicPath = path.join(__dirname, "public")
+if (__dirname.includes("/src")) {
+  publicPath = path.join(__dirname, "..", "public")
+}
 
 app.use(express.static(publicPath))
 
@@ -36,14 +37,12 @@ app.get("/", (req, res) => res.sendFile(path.join(publicPath, "login.html")))
 
 app.post("/login", (req, res) => {
   const { username, password } = req.body
-  if (
-    username === process.env.ADMIN_USERNAME &&
-    password === process.env.ADMIN_PASSWORD
-  ) {
+  if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
     req.session.authenticated = true
-    return res.redirect("/exec")
+    res.redirect("/exec")
+  } else {
+    res.redirect("/?error=1")
   }
-  res.redirect("/?error=1")
 })
 
 app.get("/forgot", (req, res) => res.sendFile(path.join(publicPath, "forgot.html")))
@@ -58,12 +57,11 @@ app.post("/forgot", async (req, res) => {
       from: process.env.EMAIL_FROM,
       to: "cacbot1@gmail.com",
       subject: "Executor Reset Code",
-      html: `<p>Your reset code is: <strong style="font-size:20px;">${code}</strong></p><p>Valid for 1 hour.</p>`
+      html: `<p>Your reset code is: <strong style="font-size:20px;">${code}</strong></p>`
     })
-    if (error) console.error("Resend error:", error)
-    else console.log("Reset code sent:", data.id)
+    if (error) console.error(error)
   } catch (err) {
-    console.error("Email failed:", err)
+    console.error(err)
   }
 
   res.redirect("/reset")
@@ -73,13 +71,8 @@ app.get("/reset", (req, res) => res.sendFile(path.join(publicPath, "reset.html")
 
 app.post("/reset", (req, res) => {
   const { code, password } = req.body
-
-  if (
-    req.session.resetCode === code &&
-    Date.now() - req.session.resetTime < 3600000
-  ) {
+  if (req.session.resetCode === code && Date.now() - req.session.resetTime < 3600000) {
     process.env.ADMIN_PASSWORD = password
-    console.log("Password updated to new value")
     delete req.session.resetCode
     delete req.session.resetTime
     res.redirect("/")
@@ -93,4 +86,4 @@ app.use(requireAuth)
 app.get("/exec", (req, res) => res.sendFile(path.join(publicPath, "exec.html")))
 app.get("/settings", (req, res) => res.sendFile(path.join(publicPath, "settings.html")))
 
-app.listen(PORT, () => console.log(`Executor running on port ${PORT}`))
+app.listen(PORT, () => console.log(`Running on port ${PORT}`))
